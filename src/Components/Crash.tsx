@@ -32,18 +32,16 @@ function Crash(props: { svg: string }) {
         mesh.setVerticesBuffer(centroidBuffer)
         mesh.setVerticesBuffer(directionBuffer)
 
-        console.log(mesh.material)
-
         return mesh
     }, [engine, props.svg])
 
     useClick(() => {
-        console.log("click")
+        mat?.setFloat("offset", 1)
     }, ref)
 
     useHover(
         () => {
-            mat?.setFloat("offset", .5)
+            mat?.setFloat("offset", .01)
         }, 
         () => {
             mat?.setFloat("offset", 0.)
@@ -58,7 +56,8 @@ function Crash(props: { svg: string }) {
                 }}
                 backFaceCulling={false}
                 options={{
-                    attributes: ["position", "direction", "projection", "view", "center"]
+                    attributes: ["position", "direction", "projection", "view", "center"],
+                    uniforms: ["worldViewProjection", "offset"]
                 }}
                 ref={setMat}
             />
