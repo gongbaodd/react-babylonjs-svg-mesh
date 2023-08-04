@@ -1,9 +1,9 @@
-import { Mesh, VertexData, Buffer } from "@babylonjs/core"
-import { useMemo } from "react"
+import { Mesh, VertexData, Buffer, Engine, ShaderMaterial } from "@babylonjs/core"
+import { useMemo, useRef, useState } from "react"
 import svgMesh3d from "svg-mesh-3d"
 import triagnleCentroid from "triangle-centroid"
 import randomVec from "gl-vec3/random"
-import { useEngine } from "react-babylonjs"
+import { useClick, useEngine, useHover } from "react-babylonjs"
 import reindex from "mesh-reindex"
 import unindex from "unindex-mesh"
 import vertexSource from "../assets/crash.vert?raw"
@@ -11,7 +11,10 @@ import fragmentSource from "../assets/blue.frag?raw"
 
 
 function Crash(props: { svg: string }) {
-    const engine = useEngine();
+    const engine = useEngine()
+    const ref = useRef<Mesh>(null)
+    const offset = useRef(0.)
+    const [mat, setMat] = useState<ShaderMaterial|null>()
     
     const mesh = useMemo(() => {
         if (!engine) return null
@@ -21,25 +24,34 @@ function Crash(props: { svg: string }) {
 
         const meshData = reindex(unindex(svgMesh3d(path)))
         const vertexData = makeVertex(meshData.positions, meshData.cells)
-        const shaderAttr = getShaderAttr(meshData.positions, meshData.cells)
+        const { centroidBuffer, directionBuffer } = getShaderAttr(meshData.positions, meshData.cells, engine)
 
         const mesh = new Mesh("simplicial-complex")
 
         vertexData.applyToMesh(mesh)
+        mesh.setVerticesBuffer(centroidBuffer)
+        mesh.setVerticesBuffer(directionBuffer)
 
-        const centroidBuffer = new Buffer(engine, shaderAttr.centroid, false, 3)
-        const centroidVBuffer = centroidBuffer.createVertexBuffer("center", 0, 3)
-        mesh.setVerticesBuffer(centroidVBuffer)
-
-        const directionBuffer = new Buffer(engine, shaderAttr.directions, false, 3)
-        const directionVBuffer = directionBuffer.createVertexBuffer("direction", 0, 3)
-        mesh.setVerticesBuffer(directionVBuffer)
+        console.log(mesh.material)
 
         return mesh
     }, [engine, props.svg])
 
+    useClick(() => {
+        console.log("click")
+    }, ref)
+
+    useHover(
+        () => {
+            mat?.setFloat("offset", .5)
+        }, 
+        () => {
+            mat?.setFloat("offset", 0.)
+        }
+    , ref)
+
     return (
-        <abstractMesh name="simplicial-complex" fromInstance={mesh} disposeInstanceOnUnmount >
+        <abstractMesh name="simplicial-complex" fromInstance={mesh} disposeInstanceOnUnmount ref={ref}>
             <shaderMaterial name="sc-material"
                 shaderPath={{
                     vertexSource, fragmentSource
@@ -48,6 +60,7 @@ function Crash(props: { svg: string }) {
                 options={{
                     attributes: ["position", "direction", "projection", "view", "center"]
                 }}
+                ref={setMat}
             />
         </abstractMesh>
     )
@@ -72,7 +85,7 @@ function makeVertex(pos: number[][], cell: number[][]) {
     return vertexData
 }
 
-function getShaderAttr(pos: number[][], cells: number[][]) {
+function getShaderAttr(pos: number[][], cells: number[][], engine: Engine) {
     const centroid: number[] = []
     const directions: number[] = []
 
@@ -87,6 +100,12 @@ function getShaderAttr(pos: number[][], cells: number[][]) {
         }
     })
 
-    return { centroid, directions }
+    const _centroidBuffer = new Buffer(engine, centroid, false, 3)
+    const centroidBuffer = _centroidBuffer.createVertexBuffer("center", 0, 3)
+
+    const _directionBuffer = new Buffer(engine, directions, false, 3)
+    const directionBuffer = _directionBuffer.createVertexBuffer("direction", 0, 3)
+
+    return { centroidBuffer, directionBuffer }
 }
 

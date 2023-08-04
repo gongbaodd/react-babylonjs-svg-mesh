@@ -22,7 +22,7 @@ function App() {
           position={new Vector3(0, 0, -10)}
           alpha={-Math.PI / 2}
           beta={Math.PI / 4}
-          radius={25}
+          radius={15}
         />
         <Crash svg={twitterIcon} />
         <hemisphericLight name="light1" intensity={0.7} direction={Vector3.Up()} />
